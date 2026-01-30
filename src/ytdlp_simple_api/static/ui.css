@@ -546,7 +546,7 @@ legend {
 .inline-options {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-md);
+    gap: var(--space-sm);
     align-items: center;
 }
 
@@ -568,6 +568,7 @@ legend {
     transition: all var(--transition-fast);
     user-select: none;
     white-space: nowrap;
+    min-height: 41.6px
 }
 
 .toggle-btn:hover {
