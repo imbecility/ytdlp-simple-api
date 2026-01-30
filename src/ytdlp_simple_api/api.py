@@ -18,7 +18,7 @@ Environment variables:
 from datetime import datetime
 from re import sub
 
-from fastapi import BackgroundTasks, FastAPI, UploadFile, File
+from fastapi import BackgroundTasks, FastAPI, UploadFile, File, APIRouter
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -67,16 +67,19 @@ app = FastAPI(
     version='0.0.1',
     docs_url='/docs',
     redoc_url='/redoc',
-    dependencies=[Depends(verify_token)],
 )
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
+public_router = APIRouter()
+protected_router = APIRouter(
+    dependencies=[Depends(verify_token)]
+)
 
 # ─────────────────────────── Endpoints: Downloads ────────────────────
 
 
-@app.post(
+@protected_router.post(
     '/download/best-audio',
     response_model=DownloadResponse,
     summary='Download best quality audio',
@@ -102,7 +105,7 @@ async def api_best_audio(
     return _build_response(result)
 
 
-@app.post(
+@protected_router.post(
     '/download/transcription-audio',
     response_model=DownloadResponse,
     summary='Download audio prepared for ASR/transcription',
@@ -132,7 +135,7 @@ async def api_transcription_audio(
     return _build_response(result)
 
 
-@app.post(
+@protected_router.post(
     '/download/video-for-chat',
     response_model=DownloadResponse,
     summary='Download video optimized for messengers',
@@ -161,7 +164,7 @@ async def api_video_for_chat(
     return _build_response(result)
 
 
-@app.post(
+@protected_router.post(
     '/download/best-quality',
     response_model=DownloadResponse,
     summary='Download video in maximum quality',
@@ -191,7 +194,7 @@ async def api_best_quality(
     return _build_response(result)
 
 
-@app.post(
+@protected_router.post(
     '/download/manual',
     response_model=DownloadResponse,
     summary='Download with manual quality settings',
@@ -227,7 +230,7 @@ async def api_manual(
 # ─────────────────────────── Endpoints: Files ────────────────────────
 
 
-@app.get(
+@public_router.get(
     '/files/{filename}',
     summary='Download a file',
     tags=['Files'],
@@ -268,7 +271,7 @@ async def get_file(filename: str):
     )
 
 
-@app.get(
+@public_router.get(
     '/files',
     response_model=list[FileInfo],
     summary='List all available files',
@@ -290,7 +293,7 @@ async def list_files():
     return sorted(files, key=lambda f: f.created_at, reverse=True)
 
 
-@app.delete(
+@protected_router.delete(
     '/files/{filename}',
     summary='Delete a file',
     tags=['Files'],
@@ -310,8 +313,8 @@ async def delete_file(filename: str):
         raise HTTPException(status_code=500, detail=f'Failed to delete: {e}')
 
 
-@app.get('/ui', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
-@app.get('/ui/', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
+@public_router.get('/ui', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
+@public_router.get('/ui/', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
 async def ui_page():
     """serve web UI"""
     if not WEB_UI:
@@ -330,7 +333,7 @@ async def ui_page():
 # ─────────────────────────── Endpoints: System ───────────────────────
 
 
-@app.get('/', summary='Health check', tags=['System'], dependencies=[])
+@public_router.get('/', summary='Health check', tags=['System'], dependencies=[])
 async def health():
     """service health check and configuration info."""
     if not HIDE_HOME:
@@ -347,7 +350,7 @@ async def health():
     return JSONResponse(status)
 
 
-@app.post('/cleanup', summary='Trigger file cleanup', tags=['System'])
+@public_router.post('/cleanup', summary='Trigger file cleanup', tags=['System'])
 async def trigger_cleanup():
     """manually trigger cleanup of expired files."""
     deleted = await _cleanup_old_files()
@@ -360,7 +363,7 @@ async def trigger_cleanup():
 
 # ─────────────────────────── Cookies ──────────────────────────────
 
-@app.get(
+@protected_router.get(
     '/cookies',
     response_model=list[CookieFileInfo],
     summary='List cookie files',
@@ -396,7 +399,7 @@ async def list_cookies():
     return sorted(files, key=lambda f: f.filename)
 
 
-@app.post(
+@protected_router.post(
     '/cookies',
     summary='Upload cookie file',
     tags=['Cookies'],
@@ -453,7 +456,7 @@ async def upload_cookie(
     }
 
 
-@app.delete(
+@protected_router.delete(
     '/cookies/{filename}',
     summary='Delete cookie file',
     tags=['Cookies'],
@@ -477,7 +480,7 @@ async def delete_cookie(filename: str):
         raise HTTPException(status_code=500, detail=f'failed to delete: {e}')
 
 
-@app.get(
+@protected_router.get(
     '/cookies/{filename}',
     summary='View cookie file info',
     tags=['Cookies'],
@@ -515,7 +518,7 @@ async def get_cookie_info(filename: str):
     )
 
 
-@app.post(
+@protected_router.post(
     '/cookies/text',
     summary='Create cookie file from text',
     tags=['Cookies'],
@@ -556,8 +559,8 @@ async def create_cookie_from_text(body: CookieTextRequest):
 
 # ─────────────────────────── Cookies UI ──────────────────────────────
 
-@app.get('/cookies-ui', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
-@app.get('/cookies-ui/', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
+@public_router.get('/cookies-ui', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
+@public_router.get('/cookies-ui/', response_class=HTMLResponse, tags=['UI'], include_in_schema=False, dependencies=[])
 async def cookies_ui_page():
     """serve the cookies management UI."""
     if not WEB_UI:
@@ -570,6 +573,9 @@ async def cookies_ui_page():
         content = content.replace('class="auth"', 'class="hide"')
     return HTMLResponse(content)
 
+
+app.include_router(public_router)
+app.include_router(protected_router)
 
 __all__ = [
     'app',
