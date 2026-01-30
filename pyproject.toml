@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "ytdlp-simple-api"
-version = "0.0.3"
+version = "0.0.4"
 description = "API for downloading media from YouTube and other platforms with various download modes, and manages cookies for accessing content that requires authorization."
 readme = "README.md"
 license = "MIT"

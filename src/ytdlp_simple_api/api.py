@@ -325,7 +325,7 @@ async def ui_page():
     content = html_path.read_text(encoding='utf-8')
     if not API_TOKEN:
         content = content.replace('class="auth"', 'class="hide"')
-    if FILE_RETENTION_H > 0:
+    if FILE_RETENTION_H <= 0:
         content = content.replace('files-list__content__warning hide', 'files-list__content__warning')
     return HTMLResponse(content)
 
@@ -336,7 +336,7 @@ async def ui_page():
 @public_router.get('/', summary='Health check', tags=['System'], dependencies=[])
 async def health():
     """service health check and configuration info."""
-    if not HIDE_HOME:
+    if HIDE_HOME:
         return HTMLResponse(get_fake_home())
     status = {
         'status': 'ok',
